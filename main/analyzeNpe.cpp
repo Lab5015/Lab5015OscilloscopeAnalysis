@@ -556,12 +556,12 @@ int main(int argc, char** argv)
       for(int iSample = minSampleSig; iSample < maxSampleSig; ++iSample)
         charge += wf.second.at(iSample)*tUnit;
       
-      if( runType == "lowLED" && fabs(charge-fit_singlePe->GetParameter(4)+1.*fit_singlePe->GetParameter(5)) < fit_singlePe->GetParameter(7) )
+      if( runType == "lowLED" && fabs(charge-fit_singlePe->GetParameter(4)+1.*fit_singlePe->GetParameter(5)) < fit_singlePe->GetParameter(9) )
       {
         for(unsigned int iSample = 0; iSample < wf.first.size(); ++iSample)
           p_avgWf_1pe -> Fill(wf.first.at(iSample),wf.second.at(iSample));
       }
-      if( runType == "lowLED" && fabs(charge-(fit_singlePe->GetParameter(4)+3.*fit_singlePe->GetParameter(5))) < fit_singlePe->GetParameter(11) )
+      if( runType == "lowLED" && fabs(charge-(fit_singlePe->GetParameter(4)+3.*fit_singlePe->GetParameter(5))) < fit_singlePe->GetParameter(13) )
       {
         for(unsigned int iSample = 0; iSample < wf.first.size(); ++iSample)
           p_avgWf_3pe -> Fill(wf.first.at(iSample),wf.second.at(iSample));
