@@ -39,7 +39,7 @@ double MultiGaussian_dFixed(double* x, double* par)
   double xx = x[0];
   int nGaus = par[0];
   double val = 0.;
-	val = par[1] * TMath::Gaus(xx,par[2],par[3]);
+  val = par[1] * TMath::Gaus(xx,par[2],par[3]);
   for(int ii = 0; ii < nGaus; ++ii)
   {
     val += par[6+2*ii] * TMath::Gaus(xx,par[4] + ii* par[5] ,par[7 +2*ii]);
@@ -157,8 +157,8 @@ int main(int argc, char** argv)
   if( runType == "pedestal" )                  h_postcharge = new TH1F("h_postcharge","",  512, -1000*VUnit, 1000.*VUnit);
   h_postcharge -> SetTitle(";charge [V#upointns];entries"); 
   TH1F* h_charge;
-  if( runType == "lowLED" )                    h_charge = new TH1F("h_charge","",  512, -1000.*VUnit, 5000.*VUnit);
-  if( runType == "Na22" || runType == "laser") h_charge = new TH1F("h_charge","", 1024, 0., 40000.*VUnit);
+  if( runType == "lowLED" )                    h_charge = new TH1F("h_charge","",  256*2, -1000.*VUnit, 5000.*VUnit);
+  if( runType == "Na22" || runType == "laser") h_charge = new TH1F("h_charge","", 1024, 0., 50000.*VUnit);
   if( runType == "PMT")                        h_charge = new TH1F("h_charge","", 1024, 0., 4000.*VUnit);
   if( runType == "pedestal" )                  h_charge = new TH1F("h_charge","",  512, -1000*VUnit, 1000.*VUnit);
   h_charge -> SetTitle(";charge [V#upointns];entries"); 
@@ -173,7 +173,17 @@ int main(int argc, char** argv)
   p_avgWf_1275 -> SetTitle(";sample time [ns];sample value [V]");
   TProfile* p_avgWf_511 = new TProfile("p_avgWf_511","",nPoints,tMin-0.5*tUnit,tMax+0.5*tUnit);
   p_avgWf_511 -> SetTitle(";sample time [ns];sample value [V]");  
+
+  TProfile* p_avgWf_1275_norm = new TProfile("p_avgWf_1275_norm","",nPoints,tMin-0.5*tUnit,tMax+0.5*tUnit);
+  p_avgWf_1275_norm -> SetTitle(";sample time [ns];sample value [V]");
+  TProfile* p_avgWf_511_norm = new TProfile("p_avgWf_511_norm","",nPoints,tMin-0.5*tUnit,tMax+0.5*tUnit);
+  p_avgWf_511_norm -> SetTitle(";sample time [ns];sample value [V]");  
+
   
+  TProfile* p_avgWf_1275_norm_aligned = new TProfile("p_avgWf_1275_norm_aligned","",nPoints,tMin-0.5*tUnit,tMax+0.5*tUnit);
+  p_avgWf_1275_norm_aligned -> SetTitle(";sample time [ns];sample value [V]");
+  TProfile* p_avgWf_511_norm_aligned = new TProfile("p_avgWf_511_norm_aligned","",nPoints,tMin-0.5*tUnit,tMax+0.5*tUnit);
+  p_avgWf_511_norm_aligned -> SetTitle(";sample time [ns];sample value [V]");  
   
   
   
@@ -187,7 +197,7 @@ int main(int argc, char** argv)
     {
       std::cout << ">>> reading frame " << iFrame << " / " << nFrames[mapIt.first] << " \r" << std::flush;
       std::pair<std::vector<double>,std::vector<double> > wf = reader.GetFrame(iFrame,0.,1.);
-      if( iFrame%8 != 0 ) continue;
+      //%if( iFrame%8 != 0 ) continue;
       
       double charge = 0.;
       for(int iSample = minSamplePed; iSample < maxSamplePed; ++iSample)
@@ -240,7 +250,7 @@ int main(int argc, char** argv)
       if( dynamicPedSub ) wf  = reader.GetFrame(iFrame,ped_values[event]/tUnit,-1.);
       else                wf  = reader.GetFrame(iFrame,ped_mean/tUnit,-1);
       
-      if( iFrame%8 != 0 ) continue;
+      //if( iFrame%8 != 0 ) continue;
       
       double charge_ped = 0.;
       for(int iSample = minSamplePed2; iSample < maxSamplePed2; ++iSample)
@@ -256,10 +266,10 @@ int main(int argc, char** argv)
   std::cout << std::endl;
   
   
-  TF1* fitPedSub = new TF1( "fitPedSub", "gaus", h_ped_sub->GetMean() - 3*h_ped_sub->GetRMS(), h_ped_sub->GetMean() + 3*h_ped_sub->GetRMS());
+  TF1* fitPedSub = new TF1( "fitPedSub", "gaus", h_ped_sub->GetMean() - 2*h_ped_sub->GetRMS(), h_ped_sub->GetMean() + 2*h_ped_sub->GetRMS());
   fitPedSub -> SetParameters(h_ped_sub->GetMaximum(), h_ped_sub->GetMean(), h_ped_sub->GetRMS()); 
   h_ped_sub -> Fit( fitPedSub, "NQR");
-  TF1* fitPedSub2 = new TF1( "fitPedSub2", "gaus", fitPedSub->GetParameter(1) - 3*fitPedSub->GetParameter(2), fitPedSub->GetParameter(1) + 3*fitPedSub->GetParameter(2));
+  TF1* fitPedSub2 = new TF1( "fitPedSub2", "gaus", fitPedSub->GetParameter(1) - 1*fitPedSub->GetParameter(2), fitPedSub->GetParameter(1) + 1*fitPedSub->GetParameter(2));
   fitPedSub2 -> SetParameters(fitPedSub->GetParameter(0), fitPedSub->GetParameter(1), fitPedSub->GetParameter(2)); 
   h_ped_sub -> Fit( fitPedSub2, "QRS+");
   
@@ -271,6 +281,9 @@ int main(int argc, char** argv)
   
   
   //--- 3rd loop over frames
+  std::vector<double> integral_values;
+  std::vector<double> t_trigger_values;
+
   event = 0;
   for(auto mapIt : map_reader)
   {
@@ -283,7 +296,7 @@ int main(int argc, char** argv)
       if( dynamicPedSub ) wf  = reader.GetFrame(iFrame,ped_values[event]/tUnit,-1.);
       else                wf  = reader.GetFrame(iFrame,ped_mean/tUnit,-1);
       
-      if( iFrame%8 != 0 ) continue;
+      //if( iFrame%8 != 0 ) continue;
       ++event;
       
       double charge_ped = 0.;
@@ -296,9 +309,9 @@ int main(int argc, char** argv)
       
       double charge = 0.;
       for(int iSample = minSampleSig; iSample < maxSampleSig; ++iSample)
-        charge += wf.second.at(iSample)*tUnit; 
+          charge += wf.second.at(iSample)*tUnit; 
       h_charge -> Fill(1.*charge);
-      
+
       /*
       float precharge = 0.;
       for(int iSample = minSample; iSample < maxSample; ++iSample)
@@ -314,7 +327,7 @@ int main(int argc, char** argv)
       */
       
       //if( iFrame < 2000 && iFrame%100 == 0 )
-      if( iFrame < 200 && iFrame%1 == 0 )
+      if( iFrame < 200 && iFrame%20 == 0 )
       {
         TGraph* g_wf = new TGraph();
         for(unsigned int iSample = 0; iSample < wf.first.size(); ++iSample)
@@ -344,7 +357,7 @@ int main(int argc, char** argv)
   {
     nPeaks = 10;
     spectrum = new TSpectrum(nPeaks);
-    nFound = spectrum -> Search(h_charge,5,"",0.13);
+    nFound = spectrum -> Search(h_charge,5,"",0.05);
     peaks = spectrum -> GetPositionX();
     
     
@@ -352,7 +365,7 @@ int main(int argc, char** argv)
       vec_peaks.push_back(peaks[ii]);
     std::sort(vec_peaks.begin(),vec_peaks.end());
     
-    TF1* fit_0pe = new TF1("fit_0pe","gaus(0)",-200.*VUnit,200.*VUnit);
+    TF1* fit_0pe = new TF1("fit_0pe","gaus(0)",-200.*VUnit,100.*VUnit);
     fit_0pe -> SetNpx(10000);
     fit_0pe -> SetLineColor(kGreen);
     fit_0pe -> SetParameter(0,h_charge->GetBinContent(h_charge->FindBin(0.)));
@@ -382,9 +395,9 @@ int main(int argc, char** argv)
       
       for(int l = 0; l < nFound; ++l)
       {
-        TF1* fitGaus = new TF1("fit_gaus","gaus",vec_peaks[l]-0.01,vec_peaks[l]+0.01);
+        TF1* fitGaus = new TF1("fit_gaus","gaus",vec_peaks[l]-0.015,vec_peaks[l]+0.015);
         fitGaus -> SetLineColor(kBlue);
-        h_charge -> Fit(fitGaus, "RS+");
+        h_charge -> Fit(fitGaus, "QRS");
         fit_singlePe -> SetParameter(6+2*l, fitGaus->GetParameter(0));
         fit_singlePe -> SetParameter(7+2*l, fitGaus->GetParameter(2));
         if( l == 0 ) fit_singlePe -> SetParameter(4, fitGaus->GetParameter(1));
@@ -421,13 +434,29 @@ int main(int argc, char** argv)
     }
     
     if( fitType == "dFixed")
-    {
-      fit_singlePe -> SetParameter(1,fit_charge_bkg->GetParameter(0));
-      fit_singlePe -> SetParameter(2,fit_charge_bkg->GetParameter(1));
-      fit_singlePe -> SetParameter(3,fit_charge_bkg->GetParameter(2));
+      {
+	//fit_singlePe -> SetParameter(1,fit_charge_bkg->GetParameter(0));
+	//fit_singlePe -> SetParameter(2,fit_charge_bkg->GetParameter(1));
+	//fit_singlePe -> SetParameter(3,fit_charge_bkg->GetParameter(2));
+	fit_singlePe -> FixParameter(1,0.);
+	fit_singlePe -> FixParameter(2,0.);
+	fit_singlePe -> FixParameter(3,0.);
     }
     
-    h_charge -> Fit(fit_singlePe,"QRLS+");
+    for(int l = 0; l < nFound; ++l)
+      {
+        TF1* fitGaus = new TF1("fit_gaus","gaus",vec_peaks[l]-0.015,vec_peaks[l]+0.015);
+	h_charge -> Fit(fitGaus, "QNRS+");
+        fitGaus -> SetLineColor(kBlue);
+        fit_singlePe -> SetParameter(6+2*l, fitGaus->GetParameter(0)-fit_charge_bkg->Eval(fitGaus->GetParameter(1)));
+        if( l == 0 ) fit_singlePe -> SetParameter(4, fitGaus->GetParameter(1));
+        if( l == 1 ) fit_singlePe -> SetParameter(5, fitGaus->GetParameter(1)-fit_singlePe->GetParameter(4));
+      }
+    
+    // for(int iPar = 0; iPar < 3+2*nFound+3; ++iPar)
+    //   fit_singlePe -> FixParameter(iPar,fit_singlePe->GetParameter(iPar));
+    
+    h_charge -> Fit(fit_singlePe,"QRS");
     
     if( fitType == "dFree")
     {
@@ -469,36 +498,38 @@ int main(int argc, char** argv)
       vec_peaks.push_back(peaks[ii]);
     std::sort(vec_peaks.begin(),vec_peaks.end());
     
-    // fit 511
-    int bin_511 = h_charge->FindBin(peaks[0]);
-    float sigma_511 = 0.;
-    for(int bin = bin_511; bin <= h_charge->GetNbinsX(); ++bin)
-    {
-      if( h_charge->GetBinContent(bin) < 0.5*h_charge->GetBinContent(bin_511) )
+    if( nFound > 0 )
       {
-        sigma_511 = (h_charge->GetBinCenter(bin) - h_charge->GetBinCenter(bin_511))/(2.35/2.);
-        break;
+	// fit 511
+	int bin_511 = h_charge->FindBin(peaks[0]);
+	float sigma_511 = 0.;
+	for(int bin = bin_511; bin <= h_charge->GetNbinsX(); ++bin)
+	  {
+	    if( h_charge->GetBinContent(bin) < 0.5*h_charge->GetBinContent(bin_511) )
+	      {
+		sigma_511 = (h_charge->GetBinCenter(bin) - h_charge->GetBinCenter(bin_511))/(2.35/2.);
+		break;
+	      }
+	  }
+	
+	fit_511 = new TF1 ("fit_511", "gaus", peaks[0]-2.*sigma_511,peaks[0]+2.*sigma_511);
+	fit_511 -> SetParameters(h_charge->GetBinContent(bin_511),peaks[0],sigma_511);
+	h_charge -> Fit(fit_511, "QNRS");
+	h_charge -> Fit(fit_511, "RS+", "", fit_511->GetParameter(1)-fit_511->GetParameter(2), fit_511->GetParameter(1)+fit_511->GetParameter(2));
+	
+	TF1* fit_511_gausSum = new TF1("fit_511_gausSum","gaus(0)+gaus(3)",peaks[0]-2.*sigma_511,peaks[0]+2.*sigma_511);
+	fit_511_gausSum -> SetParameters(h_charge->GetBinContent(bin_511)*2./3.,peaks[0],sigma_511/2.,h_charge->GetBinContent(bin_511)/3.,peaks[0],3.*sigma_511);
+	h_charge -> Fit(fit_511_gausSum,"RS+");
+	
+	fit_1275 = new TF1 ("fit_1275", "gaus", vec_peaks[nFound-1] - vec_peaks[nFound-1]*0.08, vec_peaks[nFound-1] + vec_peaks[nFound-1]*0.2);
+	h_charge -> Fit(fit_1275, "QNR");
+	h_charge -> Fit(fit_1275, "RS+", "", fit_1275->GetParameter(1)-1.*fit_1275->GetParameter(2), fit_1275->GetParameter(1)+1.5*fit_1275->GetParameter(2));
       }
-    }
-    
-    fit_511 = new TF1 ("fit_511", "gaus", peaks[0]-2.*sigma_511,peaks[0]+2.*sigma_511);
-    fit_511 -> SetParameters(h_charge->GetBinContent(bin_511),peaks[0],sigma_511);
-    h_charge -> Fit(fit_511, "QNRS");
-    h_charge -> Fit(fit_511, "RS+", "", fit_511->GetParameter(1)-fit_511->GetParameter(2), fit_511->GetParameter(1)+fit_511->GetParameter(2));
-    
-    TF1* fit_511_gausSum = new TF1("fit_511_gausSum","gaus(0)+gaus(3)",peaks[0]-2.*sigma_511,peaks[0]+2.*sigma_511);
-    fit_511_gausSum -> SetParameters(h_charge->GetBinContent(bin_511)*2./3.,peaks[0],sigma_511/2.,h_charge->GetBinContent(bin_511)/3.,peaks[0],3.*sigma_511);
-    h_charge -> Fit(fit_511_gausSum,"RS+");
-    
-    fit_1275 = new TF1 ("fit_1275", "gaus", vec_peaks[nFound-1] - vec_peaks[nFound-1]*0.08, vec_peaks[nFound-1] + vec_peaks[nFound-1]*0.2);
-    h_charge -> Fit(fit_1275, "QNR");
-    h_charge -> Fit(fit_1275, "RS+", "", fit_1275->GetParameter(1)-1.*fit_1275->GetParameter(2), fit_1275->GetParameter(1)+1.5*fit_1275->GetParameter(2));
   }
   
   
   if( runType == "laser" || runType == "pedestal" )
   {
-    std::cout << "quiii" << std::endl;
     double min = -0.5;
     nPeaks = 1;
     spectrum = new TSpectrum(nPeaks);
@@ -529,7 +560,6 @@ int main(int argc, char** argv)
   
   
   
-  
   //--- 4th loop over frames
   event = 0;
   for(auto mapIt : map_reader)
@@ -544,7 +574,11 @@ int main(int argc, char** argv)
       if( dynamicPedSub ) wf  = reader.GetFrame(iFrame,ped_values[event]/tUnit,-1.);
       else                wf  = reader.GetFrame(iFrame,ped_mean/tUnit,-1);
 
-      if( iFrame%8 != 0 ) continue;
+      //normalize and align wf
+      std::pair<std::vector<double>,std::vector<double> > wf_norm;
+      std::pair<std::vector<double>,std::vector<double> > wf_norm_aligned;
+
+      //if( iFrame%8 != 0 ) continue;
       ++event;
       double charge_ped = 0.;
       for(int iSample = minSamplePed2; iSample < maxSamplePed2; ++iSample)
@@ -552,11 +586,37 @@ int main(int argc, char** argv)
       
       if ((charge_ped / double(maxSamplePed-minSamplePed)) < fitPedSub2->GetParameter(1) - 3 * fitPedSub2->GetParameter(2)) continue;
       
+      //integrate charge and find maximum amplitude of waveform
       double charge = 0.;
+      double max_amp = 0.;
+      double t_trigger = 0;
       for(int iSample = minSampleSig; iSample < maxSampleSig; ++iSample)
-        charge += wf.second.at(iSample)*tUnit;
-      
-      if( runType == "lowLED" && fabs(charge-fit_singlePe->GetParameter(4)+1.*fit_singlePe->GetParameter(5)) < fit_singlePe->GetParameter(9) )
+      {
+          charge += wf.second.at(iSample)*tUnit; 
+	  if (wf.second.at(iSample)>max_amp) max_amp = wf.second.at(iSample);
+      }
+      h_charge -> Fill(1.*charge);
+
+      //find trigger time
+      for(int iSample = minSampleSig; iSample < maxSampleSig; ++iSample)
+      {
+	  if (wf.second.at(iSample)>0.5*max_amp) 
+	    { 
+	      t_trigger = wf.first.at(iSample);
+	      break;
+	    }
+      }
+      //fill normalized and aligned waveforms
+      for(int iSample = 0; iSample < nPoints; ++iSample)
+      {
+	  wf_norm.first.push_back(wf.first.at(iSample));
+	  wf_norm.second.push_back(wf.second.at(iSample)/charge);
+
+	  wf_norm_aligned.first.push_back(wf.first.at(iSample)-t_trigger);
+	  wf_norm_aligned.second.push_back(wf.second.at(iSample)/charge);
+      }
+   
+      if( runType == "lowLED" && fabs(charge-(fit_singlePe->GetParameter(4)+1.*fit_singlePe->GetParameter(5))) < fit_singlePe->GetParameter(9) )
       {
         for(unsigned int iSample = 0; iSample < wf.first.size(); ++iSample)
           p_avgWf_1pe -> Fill(wf.first.at(iSample),wf.second.at(iSample));
@@ -572,13 +632,21 @@ int main(int argc, char** argv)
         if( fabs(charge-fit_511->GetParameter(1)) < fit_511->GetParameter(2) )
         {
           for(unsigned int iSample = 0; iSample < wf.first.size(); ++iSample)
-            p_avgWf_511 -> Fill(wf.first.at(iSample),wf.second.at(iSample));
+	    {
+	      p_avgWf_511 -> Fill(wf.first.at(iSample),wf.second.at(iSample));
+	      p_avgWf_511_norm -> Fill(wf_norm.first.at(iSample),wf_norm.second.at(iSample));
+	      p_avgWf_511_norm_aligned -> Fill(wf_norm_aligned.first.at(iSample),wf_norm_aligned.second.at(iSample));
+	    }
         }
         
         if( fabs(charge-fit_1275->GetParameter(1)) < fit_1275->GetParameter(2) )
         {
           for(unsigned int iSample = 0; iSample < wf.first.size(); ++iSample)
-            p_avgWf_1275 -> Fill(wf.first.at(iSample),wf.second.at(iSample));
+	    {
+	      p_avgWf_1275 -> Fill(wf.first.at(iSample),wf.second.at(iSample));
+	      p_avgWf_1275_norm -> Fill(wf_norm.first.at(iSample),wf_norm.second.at(iSample));
+	      p_avgWf_1275_norm_aligned -> Fill(wf_norm_aligned.first.at(iSample),wf_norm_aligned.second.at(iSample));
+	    }
         }
       }
       
@@ -593,11 +661,11 @@ int main(int argc, char** argv)
   }
   std::cout << std::endl;
   
-  TF1* fit_avgWf = new TF1("fit_avgWf",ExpoSum,tMin,tMax,5);
-  fit_avgWf -> SetNpx(10000);
-  fit_avgWf -> SetParameters(-120.,0.,0.7,10.,40);
-  p_avgWf_all -> Fit(fit_avgWf, "RS+","",-120.,-95.);
-  fit_avgWf -> Write();
+  // TF1* fit_avgWf = new TF1("fit_avgWf",ExpoSum,tMin,tMax,5);
+  // fit_avgWf -> SetNpx(10000);
+  // fit_avgWf -> SetParameters(-120.,0.,0.7,10.,40);
+  // p_avgWf_all -> Fit(fit_avgWf, "RS+","",-120.,-95.);
+  // fit_avgWf -> Write();
   
   
   int bytes = outFile -> Write();
